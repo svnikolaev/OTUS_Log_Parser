@@ -3,7 +3,7 @@
 
 # DONE add logs
 # DONE make generator function for parsing
-# TODO add workaround about empty log dirrectory
+# DONE add workaround about empty log dirrectory
 # TODO add custom configs
 # TODO add unittests
 # TODO add warning about a lot of parsing errors
@@ -65,6 +65,7 @@ class LogParser:
     lines_count = 0
     errors = 0
     parsed_log = dict()
+    log_file_name_pattern = r'nginx-access-ui.log-[0-9]{8}(?:.gz)'
     row_pattern = re.compile(
         r'''([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\s*  # $remote_addr
             ([^\s]+)\s*  # $remote_user
@@ -91,6 +92,10 @@ class LogParser:
             self.log_dir = _config['LOG_DIR']
         else:
             raise Exception('NOT PROPPER CONFIG')
+        if not self.is_logs_exists():
+            print('Log files not found, end program')
+            logger.warning('Log files not found, end program')
+            return None
         if self.is_report_exists():
             print('Nothing to process, end program')
             logger.warning('Nothing to process, end program')
@@ -118,6 +123,12 @@ class LogParser:
                 self.report_dir, report_file_name
             )
         return self.report_file_path
+
+    def is_logs_exists(self):
+        if os.path.exists(self.log_dir):
+            if self.get_latest_log_file_path():
+                return True
+        return False
 
     def is_report_exists(self):
         self.report_file_path = self.get_report_file_path()
@@ -166,6 +177,11 @@ class LogParser:
         return self.log_file_path, self.log_file_date
 
     def get_latest_log_file_path(self):
+        if not os.listdir(self.log_dir):
+            return None
+        _files_list = os.listdir(self.log_dir)
+        if not re.findall(self.log_file_name_pattern, '\n'.join(_files_list)):
+            return None
         files_dict, max_date = dict(), 0
         files_list = self.get_files_list()
         for file in files_list:
@@ -182,11 +198,10 @@ class LogParser:
 
     def get_files_list(self):
         content = os.listdir(self.log_dir)
-        pattern = r'nginx-access-ui.log-[0-9]{8}(?:.gz)?'
         for file_name in content:
             if (
                 os.path.isfile(os.path.join(self.log_dir, file_name))
-                and re.fullmatch(pattern, file_name)
+                and re.fullmatch(self.log_file_name_pattern, file_name)
             ):
                 # print(file_name)
                 yield file_name
