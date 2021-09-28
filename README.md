@@ -1,6 +1,6 @@
 # Log Analyzer
 
-📚Домашнее задание/проектная работа разработано(-на) для курса ["Python Developer. Professional"](https://otus.ru/lessons/python-professional/?utm_source=github&utm_medium=free&utm_campaign=otus)
+📚Домашнее задание разработано для курса ["Python Developer. Professional"](https://otus.ru/lessons/python-professional/?utm_source=github&utm_medium=free&utm_campaign=otus)
 
 ## Задача
 
