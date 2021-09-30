@@ -16,6 +16,7 @@
 # '"$http_user_agent" "$http_x_forwarded_for" "$http_X_REQUEST_ID" '
 # '"$http_X_RB_USER" $request_time';
 
+import argparse
 import gzip
 import logging
 import os
@@ -306,7 +307,27 @@ class LogParser:
         return result_dict
 
 
+def get_custom_config(path):
+    # if config path exists
+    # get args from path 
+    pass
+
+
 def main():
+    parser = argparse.ArgumentParser(description='Configuration file')
+    parser.add_argument(
+        '-c',
+        '--config',
+        type=str,
+        # default='config',
+        help='Path to custom configuration file'
+    )
+    args = parser.parse_args()
+    if args:
+        print(f'ARGS: {args}')
+        print(f'ARGS2: {args.config}')
+        print(get_custom_config(args))
+        return None
     print('Start process')
     logger.info('Start process')
     try:
