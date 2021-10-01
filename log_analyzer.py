@@ -306,65 +306,40 @@ def get_config():
         "REPORT_DIR": "./reports",
         "LOG_DIR": "./log"
     }
-    print(config)
-    config_path = 'config'
-    print(f'type(config_path) = {type(config_path)}')
-
     parser = argparse.ArgumentParser(description='Configuration file')
     parser.add_argument(
-        '-c',
-        '--config',
+        '-c', '--config',
         type=str,
-        # default='config',
-        help='Path to custom configuration file'
+        default='config.ini',
+        help='Path to configuration file'
     )
-    args = parser.parse_args()
-
-    print(f'bool(args.config) = {bool(args.config)}')
-    if args.config:
-        config_path = args.config
-        print(f'ARGS: {args}')
-        print(f'ARGS2: {args.config}')
-    print(f'type(config_path) = {type(config_path)}')
+    config_path = parser.parse_args().config
     if not os.path.exists(config_path):
-        print(f'{config_path} is not exists')
-        print("End program")
+        print(f'Configuration file: {config_path} - is not exists')
+        logger.warning(f'Configuration file: {config_path} - is not exists')
         return None
-
     config_parser = configparser.ConfigParser()  # создаём объекта парсера
     config_parser.read(config_path)
     configuration = config_parser['LOG_PARSER']
-    print(f"configuration.get('REPORT_SIZE')={bool(configuration.get('REPORT_SIZE'))}")
-    print(f"configuration.get('REPORT')={bool(configuration.get('REPORT'))}")
     if configuration.get('REPORT_SIZE'):
-        print('1')
         config['REPORT_SIZE'] = configuration.get('REPORT_SIZE')
     if configuration.get('REPORT_DIR'):
-        print('2')
         config['REPORT_DIR'] = configuration.get('REPORT_DIR')
     if configuration.get('LOG_DIR'):
-        print('3')
         config['LOG_DIR'] = configuration.get('LOG_DIR')
-    for _section in config_parser.sections():
-        print(f'[{_section}]')
-        for key in config_parser[_section]:
-            print(f'{key}={config_parser[_section][key]}')
-    # if config path exists
-    # get args from path 
     return config
 
 
 def main():
-    config = get_config()
-    print(config)
-    return None
     print('Start process')
     logger.info('Start process')
-    try:
-        LogParser(_config=config)
-    except:  # noqa: E722
-        # logger.error(f'uncaught exception: {traceback.format_exc()}')
-        logger.exception(f'uncaught exception: {traceback.format_exc()}')
+    config = get_config()
+    if config:
+        try:
+            LogParser(_config=config)
+        except:  # noqa: E722
+            # logger.error(f'uncaught exception: {traceback.format_exc()}')
+            logger.exception(f'uncaught exception: {traceback.format_exc()}')
     print('End process')
     logger.info('End process')
 
