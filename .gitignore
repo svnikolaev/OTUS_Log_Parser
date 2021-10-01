@@ -146,4 +146,5 @@ temp*
 *.pdf
 log/
 task/
+reports/
 *.ipynb
