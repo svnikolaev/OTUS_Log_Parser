@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# DONE add README.md
 # DONE add logs
 # DONE make generator function for parsing
 # DONE add workaround about empty log dirrectory
-# TODO add custom configs
+# DONE add custom configs
 # TODO add unittests
 # TODO add warning about a lot of parsing errors
 # TODO add docstrings for functions
-# TODO add README.md
 
 # log_format ui_short
 # '$remote_addr  $remote_user $http_x_real_ip [$time_local] "$request" '
@@ -77,13 +77,13 @@ class LogParser:
         ''', re.VERBOSE)
 
     def __init__(self, _config=None):
-        if _config is None:
-            print('Using default config')
-            logger.info('Using default config')
-            _config = config
         if self.is_keys_in_config(_config):
-            self.report_dir = _config['REPORT_DIR']
-            self.log_dir = _config['LOG_DIR']
+            self.report_dir = os.path.join(
+                *_config['REPORT_DIR'].replace('\\', '/').split('/')
+            )
+            self.log_dir = os.path.join(
+                *_config['LOG_DIR'].replace('\\', '/').split('/')
+            )
         else:
             raise Exception('NOT PROPPER CONFIG')
         if not self.is_logs_exists():
