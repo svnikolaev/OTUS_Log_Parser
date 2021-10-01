@@ -17,6 +17,7 @@
 # '"$http_X_RB_USER" $request_time';
 
 import argparse
+import configparser
 import gzip
 import logging
 import os
@@ -24,14 +25,6 @@ import re
 import traceback
 from datetime import datetime
 from string import Template
-
-config = {
-    "REPORT_SIZE": 1000,
-    # "REPORT_DIR": "./reports",
-    "REPORT_DIR": os.path.join('.', 'reports'),
-    # "LOG_DIR": "./log"
-    "LOG_DIR": os.path.join('.', 'log')
-}
 
 
 # setup logger
@@ -307,13 +300,16 @@ class LogParser:
         return result_dict
 
 
-def get_custom_config(path):
-    # if config path exists
-    # get args from path 
-    pass
+def get_config():
+    config = {
+        "REPORT_SIZE": 1000,
+        "REPORT_DIR": "./reports",
+        "LOG_DIR": "./log"
+    }
+    print(config)
+    config_path = 'config'
+    print(f'type(config_path) = {type(config_path)}')
 
-
-def main():
     parser = argparse.ArgumentParser(description='Configuration file')
     parser.add_argument(
         '-c',
@@ -323,11 +319,45 @@ def main():
         help='Path to custom configuration file'
     )
     args = parser.parse_args()
-    if args:
+
+    print(f'bool(args.config) = {bool(args.config)}')
+    if args.config:
+        config_path = args.config
         print(f'ARGS: {args}')
         print(f'ARGS2: {args.config}')
-        print(get_custom_config(args))
+    print(f'type(config_path) = {type(config_path)}')
+    if not os.path.exists(config_path):
+        print(f'{config_path} is not exists')
+        print("End program")
         return None
+
+    config_parser = configparser.ConfigParser()  # создаём объекта парсера
+    config_parser.read(config_path)
+    configuration = config_parser['LOG_PARSER']
+    print(f"configuration.get('REPORT_SIZE')={bool(configuration.get('REPORT_SIZE'))}")
+    print(f"configuration.get('REPORT')={bool(configuration.get('REPORT'))}")
+    if configuration.get('REPORT_SIZE'):
+        print('1')
+        config['REPORT_SIZE'] = configuration.get('REPORT_SIZE')
+    if configuration.get('REPORT_DIR'):
+        print('2')
+        config['REPORT_DIR'] = configuration.get('REPORT_DIR')
+    if configuration.get('LOG_DIR'):
+        print('3')
+        config['LOG_DIR'] = configuration.get('LOG_DIR')
+    for _section in config_parser.sections():
+        print(f'[{_section}]')
+        for key in config_parser[_section]:
+            print(f'{key}={config_parser[_section][key]}')
+    # if config path exists
+    # get args from path 
+    return config
+
+
+def main():
+    config = get_config()
+    print(config)
+    return None
     print('Start process')
     logger.info('Start process')
     try:
