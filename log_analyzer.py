@@ -16,6 +16,8 @@
 # '"$http_user_agent" "$http_x_forwarded_for" "$http_X_REQUEST_ID" '
 # '"$http_X_RB_USER" $request_time';
 
+import argparse
+import configparser
 import gzip
 import logging
 import os
@@ -23,14 +25,6 @@ import re
 import traceback
 from datetime import datetime
 from string import Template
-
-config = {
-    "REPORT_SIZE": 1000,
-    # "REPORT_DIR": "./reports",
-    "REPORT_DIR": os.path.join('.', 'reports'),
-    # "LOG_DIR": "./log"
-    "LOG_DIR": os.path.join('.', 'log')
-}
 
 
 # setup logger
@@ -306,14 +300,46 @@ class LogParser:
         return result_dict
 
 
+def get_config():
+    config = {
+        "REPORT_SIZE": 1000,
+        "REPORT_DIR": "./reports",
+        "LOG_DIR": "./log"
+    }
+    parser = argparse.ArgumentParser(description='Configuration file')
+    parser.add_argument(
+        '-c', '--config',
+        type=str,
+        default='config.ini',
+        help='Path to configuration file'
+    )
+    config_path = parser.parse_args().config
+    if not os.path.exists(config_path):
+        print(f'Configuration file: {config_path} - is not exists')
+        logger.warning(f'Configuration file: {config_path} - is not exists')
+        return None
+    config_parser = configparser.ConfigParser()  # создаём объекта парсера
+    config_parser.read(config_path)
+    configuration = config_parser['LOG_PARSER']
+    if configuration.get('REPORT_SIZE'):
+        config['REPORT_SIZE'] = configuration.get('REPORT_SIZE')
+    if configuration.get('REPORT_DIR'):
+        config['REPORT_DIR'] = configuration.get('REPORT_DIR')
+    if configuration.get('LOG_DIR'):
+        config['LOG_DIR'] = configuration.get('LOG_DIR')
+    return config
+
+
 def main():
     print('Start process')
     logger.info('Start process')
-    try:
-        LogParser(_config=config)
-    except:  # noqa: E722
-        # logger.error(f'uncaught exception: {traceback.format_exc()}')
-        logger.exception(f'uncaught exception: {traceback.format_exc()}')
+    config = get_config()
+    if config:
+        try:
+            LogParser(_config=config)
+        except:  # noqa: E722
+            # logger.error(f'uncaught exception: {traceback.format_exc()}')
+            logger.exception(f'uncaught exception: {traceback.format_exc()}')
     print('End process')
     logger.info('End process')
 
