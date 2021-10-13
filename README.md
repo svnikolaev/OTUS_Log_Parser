@@ -16,3 +16,7 @@
 ```bash
 python log_parser.py --config custom_config.ini
 ```
+
+## Тестирование
+
+Запуск тестов осуществляется по комманде `python -m unittest`
