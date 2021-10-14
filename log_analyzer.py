@@ -52,7 +52,7 @@ def send_message(_message, level='i'):
 
 class LogParser:
     config_keys = ['REPORT_DIR', 'LOG_DIR']
-    config = dict()
+    config = {}
     report_dir = ''
     log_dir = ''
     log_file_path = ''
@@ -60,8 +60,7 @@ class LogParser:
     report_file_path = ''
     lines_count = 0
     errors = 0
-    parsed_log = dict()
-    # ready_to_parse = False
+    parsed_log = {}
     log_file_name_pattern = r'nginx-access-ui\.log-[0-9]{8}(?:\.gz)?'
     log_file_date_pattern = r'nginx-access-ui\.log-([0-9]{8})(?:\.gz)?'
     row_pattern = re.compile(
@@ -80,8 +79,8 @@ class LogParser:
             ([0-9\.]+)  # $request_time
         ''', re.VERBOSE)
 
-    def __init__(self, config, testing=False):
-        if not testing and not self.is_keys_in_config(config):
+    def __init__(self, config, debug=False):
+        if not debug and not self.is_keys_in_config(config):
             _message = 'NOT PROPPER CONFIG'
             logger.exception(_message)
             raise Exception(_message)
@@ -179,14 +178,14 @@ class LogParser:
         send_message(f'{self.report_file_path} created')
         return True
 
-    def is_keys_in_config(self, config, keys=None, testing=False):
+    def is_keys_in_config(self, config, keys=None, debug=False):
         if keys is None:
             keys = self.config_keys
-        if not testing:
+        if not debug:
             send_message(f'CONFIG: {config}')
         for key in keys:
             if key not in config:
-                if not testing:
+                if not debug:
                     send_message(f'Config key: {key} not in config', level='w')
                 return False
         return True
@@ -242,7 +241,7 @@ class LogParser:
             log_dir = self.get_log_dir()
         if not log_dir:
             return None
-        files_dict, max_date = dict(), 0
+        files_dict, max_date = {}, 0
         files_list = self.get_log_files_list_by_pattern()
         if not files_list:
             return None
@@ -294,7 +293,7 @@ class LogParser:
         if log_file_path is None:
             log_file_path = self.get_log_file_path()
         log_file = self.get_log_file(log_file_path)
-        result_dict = dict()
+        result_dict = {}
         if not log_file:
             return None
         self.lines_count = self.get_lines_count()

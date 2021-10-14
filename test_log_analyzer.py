@@ -11,7 +11,7 @@ class TestLogParser(unittest.TestCase):
             "REPORT_DIR": "./reports",
             "LOG_DIR": "./log"
         }
-        self.log_parser = LogParser(config, testing=True)
+        self.log_parser = LogParser(config, debug=True)
 
     def test_median(self):
         for value, result in [
@@ -55,7 +55,7 @@ class TestLogParser(unittest.TestCase):
                     self.log_parser.is_keys_in_config(
                         value,
                         keys=['REPORT_DIR', 'LOG_DIR', 'REPORT_SIZE'],
-                        testing=True
+                        debug=True
                     ),
                     result
                 )
