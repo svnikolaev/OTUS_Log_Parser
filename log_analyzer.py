@@ -4,7 +4,7 @@
 # DONE add README.md
 # DONE add logs
 # DONE make generator function for parsing
-# DONE add workaround about empty log dirrectory
+# DONE add workaround about empty log directory
 # DONE add custom configs
 # DONE add unittests
 # DONE add warning about a lot of parsing errors
@@ -23,8 +23,10 @@ import os
 import re
 import traceback
 from datetime import datetime
+from pathlib import Path
 from statistics import median
 from string import Template
+from typing import Dict, Optional
 
 # setup logger
 logging.basicConfig(
@@ -51,15 +53,6 @@ def send_message(_message, level='i'):
 
 class LogParser:
     config_keys = ['REPORT_DIR', 'LOG_DIR']
-    config = {}
-    report_dir = ''
-    log_dir = ''
-    log_file_path = ''
-    log_file_date = None
-    report_file_path = ''
-    lines_count = 0
-    errors = 0
-    parsed_log = {}
     log_file_name_pattern = r'nginx-access-ui\.log-[0-9]{8}(?:\.gz)?'
     log_file_date_pattern = r'nginx-access-ui\.log-([0-9]{8})(?:\.gz)?'
     row_pattern = re.compile(
@@ -78,79 +71,86 @@ class LogParser:
             ([0-9\.]+)  # $request_time
         ''', re.VERBOSE)
 
-    def __init__(self, config, debug=False):
+    def __init__(self, config: Dict, debug: Optional[bool] = False) -> None:
+        self.report_dir = ''
+        self.log_dir = ''
+        self.log_file_path = ''
+        self.log_file_date = None
+        self.report_file_path = ''
+        self.lines_count = 0
+        self.errors = 0
         if not debug and not self.is_keys_in_config(config):
             _message = 'NOT PROPPER CONFIG'
             logger.exception(_message)
             raise Exception(_message)
         self.config = config
-        self.get_log_dir()
+        self.log_dir = self.get_log_dir(config)
 
-    def is_ready_to_parse(self, log_dir=None):
-        if log_dir is None:
-            log_dir = self.log_dir
-        if not log_dir:
-            send_message('Dirrectory with logs is not set', level='w')
-            return False
+    def is_ready_to_parse(self, config):
+        log_dir = self.get_log_dir(config)
         if not os.path.exists(log_dir):
-            send_message(f'Dirrectory {log_dir} not found', level='w')
+            send_message(f'Directory {log_dir} not found', level='w')
             return False
         if not os.listdir(log_dir):
-            send_message(f'No files in {log_dir} dirrectory', level='w')
+            send_message(f'No files in {log_dir} directory', level='w')
             return False
-        if self.is_report_exists():
+        if self.is_report_exists(
+            self.get_report_file_path(
+                self.get_report_dir(config)
+            )
+        ):
             send_message('Report already exists')
             return False
-        self.ready_to_parse = True
         return True
 
-    def get_log_dir(self, config=None):
-        if not config:
-            config = self.config
+    def get_log_dir(self, config):
         if not self.log_dir:
-            log_dir = os.path.join(
-                *config['LOG_DIR'].replace('\\', '/').split('/'))
+            log_dir = Path(config['LOG_DIR'])
+            # log_dir = os.path.join(
+            #     *config['LOG_DIR'].replace('\\', '/').split('/'))
+            # print(f'log_dir: {log_dir}')
             self.log_dir = log_dir
         return self.log_dir
 
-    def get_report_dir(self, config=None):
-        if not config:
-            config = self.config
+    def get_report_dir(self, config):
         if not self.report_dir:
-            self.report_dir = os.path.join(
-                *config['REPORT_DIR'].replace('\\', '/').split('/'))
+            report_dir = Path(config['REPORT_DIR'])
+            # report_dir = os.path.join(
+            #     *config['REPORT_DIR'].replace('\\', '/').split('/'))
+            print(f'report_dir: {report_dir}')
+            self.report_dir = report_dir
         return self.report_dir
 
-    def is_report_exists(self, report_file_path=None):
-        if not report_file_path:
-            report_file_path = self.get_report_file_path()
+    def is_report_exists(self, report_file_path) -> bool:
         if os.path.exists(report_file_path):
             return True
         return False
 
-    def parse_log_file(self, parsed_log=None):
-        if not self.is_ready_to_parse():
+    def parse_log_file(self):
+        config = self.config
+        if not self.is_ready_to_parse(config):
             return None
-        if parsed_log is None:
-            parsed_log = self.get_parsed_log()
+        log_file_path = self.get_log_file_path()
+        parsed_log = self.get_parsed_log(log_file_path)
         if not parsed_log:
             return None
         send_message(f'parsing {self.log_file_path}')
-        self.parsed_log = parsed_log
-        self.export_report()
+        self.export_report(
+            self.get_report_dir(config),
+            parsed_log
+        )
         if self.errors:
             send_message(f'Parsing errors: {self.errors}', level='w')
 
-    def export_report(self, report_dir=None):
-        if not report_dir:
-            report_dir = self.report_dir
+    def export_report(self, report_dir, parsed_log):
         if not os.path.exists(report_dir):
             os.mkdir(report_dir)
-        self.create_report()
+        self.create_report(
+            self.get_report_file_path(report_dir),
+            parsed_log
+        )
 
-    def get_report_file_path(self, report_dir=None, date=None):
-        if report_dir is None:
-            report_dir = self.get_report_dir()
+    def get_report_file_path(self, report_dir, date=None):
         if date is None:
             date = self.get_log_file_date()
         if not date:
@@ -162,19 +162,17 @@ class LogParser:
                 report_dir, report_file_name)
         return self.report_file_path
 
-    def create_report(self, report_file_path=None):
-        if not report_file_path:
-            report_file_path = self.get_report_file_path()
+    def create_report(self, report_file_path, parsed_log):
         if not os.path.exists(self.report_file_path):
             with open('report_template.html', 'r', encoding='utf-8') as file:
                 report_text = ''.join(file.readlines())
-            with open(self.report_file_path, 'w', encoding='utf-8') as file:
+            with open(report_file_path, 'w', encoding='utf-8') as file:
                 _template = Template(report_text)
                 report_text = _template.safe_substitute(
-                    table_json=[*self.parsed_log.values()]
+                    table_json=[*parsed_log.values()]
                 )
                 file.writelines(report_text)
-        send_message(f'{self.report_file_path} created')
+        send_message(f'{report_file_path} created')
         return True
 
     def is_keys_in_config(self, config, keys=None, debug=False):
@@ -202,7 +200,9 @@ class LogParser:
 
     def get_log_file_path(self):
         if not self.log_file_path:
-            log_file_path = self.get_latest_log_file_path()
+            log_file_path = self.get_latest_log_file_path(
+                self.get_log_dir(self.config)
+            )
             if not log_file_path:
                 return None
             self.log_file_path = log_file_path
@@ -213,12 +213,10 @@ class LogParser:
             self.log_file_date = self.get_latest_log_file_date()
         return self.log_file_date
 
-    def get_log_files_list(self, log_dir=None):
-        if not log_dir:
-            log_dir = self.get_log_dir()
+    def get_log_files_list(self, log_dir):
         files_list = os.listdir(log_dir)
         if not files_list:
-            send_message('No files in log dirrectory')
+            send_message('No files in log directory')
             return None
         for file_name in files_list:
             if os.path.isfile(os.path.join(log_dir, file_name)):
@@ -228,18 +226,16 @@ class LogParser:
         if not pattern:
             pattern = self.log_file_name_pattern
         if files_list is None:
-            files_list = self.get_log_files_list()
+            files_list = self.get_log_files_list(
+                self.get_log_dir(self.config)
+            )
         if not files_list:
             return None
         for file_name in files_list:
             if re.fullmatch(pattern, file_name):
                 yield file_name
 
-    def get_latest_log_file_path(self, log_dir=None):
-        if log_dir is None:
-            log_dir = self.get_log_dir()
-        if not log_dir:
-            return None
+    def get_latest_log_file_path(self, log_dir):
         files_dict, max_date = {}, 0
         files_list = self.get_log_files_list_by_pattern()
         if not files_list:
@@ -287,9 +283,7 @@ class LogParser:
                     )
         return True
 
-    def get_parsed_log(self, log_file_path=None):
-        if log_file_path is None:
-            log_file_path = self.get_log_file_path()
+    def get_parsed_log(self, log_file_path):
         log_file = self.get_log_file(log_file_path)
         result_dict = {}
         if not log_file:
@@ -363,7 +357,7 @@ class LogParser:
         return result_dict
 
 
-def get_config():
+def get_config() -> Dict:
     config = {
         "REPORT_SIZE": 1000,
         "REPORT_DIR": "./reports",
