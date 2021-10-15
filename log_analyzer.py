@@ -39,8 +39,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def send_message(_message, level='i'):
+def send_message(_message: str, level: Optional[str] = 'i') -> None:
+    """Send message to stdout and to log file at the same time
+
+    Args:
+        _message (str): message that need to send
+        level (Optional[str], optional): 'i' - info level, 'w' - warning \
+            level, 'error' - error level, 'exception' - exception level. \
+            Defaults to 'i'.
+    """
+
     print(_message)
+
     if level == 'i':
         logger.info(_message)
     if level == 'w':
