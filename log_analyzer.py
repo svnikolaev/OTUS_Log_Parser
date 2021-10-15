@@ -22,7 +22,6 @@ import logging
 import os
 import re
 import traceback
-
 from datetime import datetime
 from string import Template
 
@@ -91,7 +90,7 @@ class LogParser:
         if log_dir is None:
             log_dir = self.log_dir
         if not log_dir:
-            send_message('Dirrectory with logs is not setted', level='w')
+            send_message('Dirrectory with logs is not set', level='w')
             return False
         if not os.path.exists(log_dir):
             send_message(f'Dirrectory {log_dir} not found', level='w')
@@ -259,8 +258,7 @@ class LogParser:
         if not log_file_path:
             return None
         if pattern is None:
-            # get ['YYYYmmdd']
-            pattern = self.log_file_date_pattern
+            pattern = self.log_file_date_pattern  # get ['YYYYmmdd']
         _date = re.findall(pattern, log_file_path)[0]
         format_date = '%Y%m%d'
         return datetime.strptime(_date, format_date)
@@ -412,7 +410,6 @@ def main():
             log_parser = LogParser(config)
             log_parser.parse_log_file()
         except:  # noqa: E722
-            # logger.error(f'uncaught exception: {traceback.format_exc()}')
             logger.exception(f'uncaught exception: {traceback.format_exc()}')
     send_message('End process\n')
 
