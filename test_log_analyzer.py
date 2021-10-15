@@ -13,17 +13,6 @@ class TestLogParser(unittest.TestCase):
         }
         self.log_parser = LogParser(config, debug=True)
 
-    def test_median(self):
-        for value, result in [
-            ([1, 2, 3, 4, 5], 3),
-            ([1, 2, 3, 4, 5, 6], 3.5)
-        ]:
-            with self.subTest(value):
-                self.assertEqual(
-                    self.log_parser.median(value),
-                    result
-                )
-
     def test_is_keys_in_config(self):
         for value, result in [
             ({

@@ -23,8 +23,8 @@ import os
 import re
 import traceback
 from datetime import datetime
+from statistics import median
 from string import Template
-
 
 # setup logger
 logging.basicConfig(
@@ -334,7 +334,7 @@ class LogParser:
             durations = result_dict[key]['durations']
             result_dict[key]['time_med'] = durations[0] if (
                                                len(durations) == 1
-                                           ) else self.median(durations)
+                                           ) else median(durations)
             del result_dict[key]['durations']
         return result_dict
 
@@ -361,15 +361,6 @@ class LogParser:
             'request_time': float(transition_list[12])
         }
         return result_dict
-
-    @staticmethod
-    def median(lst):
-        s, n = sorted(lst), len(lst)
-        index = (n - 1) // 2
-        if (n % 2):
-            return s[index]
-        else:
-            return (s[index] + s[index + 1])/2.0
 
 
 def get_config():
