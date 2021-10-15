@@ -166,7 +166,7 @@ class LogParser:
         if not report_file_path:
             report_file_path = self.get_report_file_path()
         if not os.path.exists(self.report_file_path):
-            with open('report.html', 'r', encoding='utf-8') as file:
+            with open('report_template.html', 'r', encoding='utf-8') as file:
                 report_text = ''.join(file.readlines())
             with open(self.report_file_path, 'w', encoding='utf-8') as file:
                 _template = Template(report_text)
