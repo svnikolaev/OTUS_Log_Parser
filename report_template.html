@@ -59,7 +59,18 @@
   </tbody>
 
   <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-  <script type="text/javascript" src="jquery.tablesorter.min.js"></script> 
+  <script type="text/javascript" src="../jquery.tablesorter.min.js"></script> 
+  <script>
+    try {
+      if($().tablesorter()) {
+        console.log('../jquery.tablesorter.min.js loaded');
+      }
+    } catch (err) {
+      document.write(
+        '<script type="text/javascript" src="jquery.tablesorter.min.js">\x3C/script>'
+      );
+    }
+  </script>
   <script type="text/javascript">
   !function($) {
     var table = $table_json;
