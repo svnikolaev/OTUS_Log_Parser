@@ -114,12 +114,6 @@ class LogParser:
             bool: Is it possible to parse log or not
         """
         self.log_dir = self.get_log_dir(self.config)
-        # if not os.path.exists(self.log_dir):
-        #     send_message(f'Directory {self.log_dir} not found', level='w')
-        #     return False
-        # if not os.listdir(self.log_dir):
-        #     send_message(f'No files in {self.log_dir} directory', level='w')
-        #     return False
         if not Path(self.log_dir).exists():
             send_message(f'Directory {self.log_dir} not found', level='w')
             return False
@@ -129,7 +123,7 @@ class LogParser:
         self.report_dir = self.get_report_dir(self.config)
         # self.report_file_path = self.get_report_file_path(self.report_dir)
         self.report_file_path = self.get_report_file_path(self.config)
-        if self.is_report_exists(self.report_file_path):
+        if Path(self.report_file_path).exists():
             send_message('Report already exists')
             return False  # all work already done - nothing to do
         return True  # ready to start parsing log file
@@ -141,25 +135,14 @@ class LogParser:
     def get_report_dir(self, config):
         if not self.report_dir:
             report_dir = Path(config['REPORT_DIR'])
-            # report_dir = os.path.join(
-            #     *config['REPORT_DIR'].replace('\\', '/').split('/'))
             print(f'report_dir: {report_dir}')
             self.report_dir = report_dir
         return self.report_dir
 
-    def is_report_exists(self, report_file_path) -> bool:
-        if os.path.exists(report_file_path):
-            return True
-        return False
-
     def export_report(self, report_dir, parsed_log):
         Path(report_dir).mkdir(exist_ok=True, parents=True)
-        # if not os.path.exists(report_dir):
-        #     os.mkdir(report_dir)
-        self.create_report(
-            self.get_report_file_path(self.config),
-            parsed_log
-        )
+        self.create_report(self.get_report_file_path(self.config),
+                           parsed_log)
 
     def get_report_file_path(self, config):
         # self.log_file_date = self.get_log_file_date()
@@ -204,18 +187,7 @@ class LogParser:
                 return False
         return True
 
-    # # используется 0 раз
-    # def get_log_file(self, config):
-    #     self.log_file_path = self.get_log_file_path(config)
-    #     if not self.log_file_path:
-    #         return None
-    #     if self.log_file_path.endswith('.gz'):
-    #         _file = gzip.open(self.log_file_path, 'rt')
-    #     else:
-    #         _file = open(self.log_file_path, 'r', encoding='utf-8')
-    #     return (row for row in _file)
-
-    # используется 4 раза
+    # используется _ раз
     def get_log_file_path(self, config):
         self.log_dir = self.get_log_dir(config)
         log_file_path = self.get_latest_log_file_path(
@@ -228,11 +200,7 @@ class LogParser:
         self.log_file_path = log_file_path
         return self.log_file_path
 
-    # def get_log_file_date(self, config):
-    #     self.log_file_date = self.get_latest_log_file_date()
-    #     return self.log_file_date
-
-    # # используется 1 раза
+    # # используется 1 раз
     def get_files_list(self, dirrectory):
         files_list = os.listdir(dirrectory)
         if not files_list:
@@ -242,41 +210,10 @@ class LogParser:
             if os.path.isfile(os.path.join(dirrectory, file_name)):
                 yield file_name
 
-    # # используется 0 раз
-    # def get_log_files_list_by_pattern(self, pattern):
-    #     # files_list = self.get_log_files_list(
-    #     #         self.get_log_dir(self.config)
-    #     #     )
-    #     files_list = os.listdir(self.get_log_dir(self.config))
-    #     if not files_list:
-    #         send_message('No files in log directory')
-    #         return None
-    #     if pattern:
-    #         for file_name in files_list:
-    #             if re.fullmatch(pattern, file_name):
-    #                 yield file_name
-    #     else:
-    #         for file_name in files_list:
-    #             yield file_name
-
-    # используется 1 раз
-    # def get_latest_log_file_path(self, log_dir):
+    # используется _ раз
     def get_latest_log_file_path(self, log_files_list, pattern, config):
-        # files_dict, max_date = {}, 0
-        # files_list = self.get_log_files_list_by_pattern()
-        # if not files_list:
-        #     return None
-        # for file in files_list:
-        #     file_date = int(file[20:28])
-        #     max_date = file_date if file_date > max_date else max_date
-        #     files_dict[file_date] = file
-        # if not files_dict:
-        #     return None
-        # return os.path.join(log_dir, files_dict[max_date])
         self.log_dir = self.get_log_dir(config)
         latest_file, max_date = '', 0
-        # files_list = self.get_log_files_list_by_pattern(
-        #     self.log_file_name_pattern)
         if not log_files_list:
             return None
         for file in log_files_list:
@@ -289,48 +226,9 @@ class LogParser:
             return None
         return os.path.join(self.log_dir, latest_file)
 
-    # # используется 0 раз
-    # def get_latest_log_file_date(self, log_file_path=None, pattern=None):
-    #     if log_file_path is None:
-    #         log_file_path = self.get_log_file_path()
-    #     if not log_file_path:
-    #         return None
-    #     if pattern is None:
-    #         pattern = self.log_file_date_pattern  # get ['YYYYmmdd']
-    #     _date = re.findall(pattern, log_file_path)[0]
-    #     format_date = '%Y%m%d'
-    #     return datetime.strptime(_date, format_date)
-
-    # def get_lines_count(self):
-    #     if not self.lines_count:
-    #         self.count_lines_and_total_request_time()
-    #     return self.lines_count
-
-    # def get_total_request_time(self):
-    #     if not self.total_request_time:
-    #         self.count_lines_and_total_request_time()
-    #     return self.total_request_time
-
-    # def count_lines_and_total_request_time(self):
-    #     if not self.lines_count or not self.total_request_time:
-    #         log_file = self.get_log_file(self.config)
-    #         self.lines_count = 0
-    #         self.total_request_time = 0
-    #         for row in log_file:
-    #             self.lines_count += 1
-    #             parsed = self.parse_log_row(row)
-    #             if parsed:
-    #                 self.total_request_time += float(
-    #                     parsed['request_time']
-    #                 )
-    #     return True
-
     def parse_log(self, log_file_path):
-        # log_file = self.get_log_file(log_file_path)
         result_dict = {}
         lines_count, total_request_time = 0, .0
-
-        # ==== log_file iterate ====
         log_file = gzip.open(self.log_file_path, 'rt') if (
             self.log_file_path.endswith('.gz')
         ) else open(self.log_file_path, 'r', encoding='utf-8')
@@ -366,7 +264,6 @@ class LogParser:
                                       ) else temp_dict['time_max']
             result_dict[request] = temp_dict
         log_file.close()
-        # ==== end log_file iterate ====
 
         for key in result_dict:
             result_dict[key]['count_perc'] = (
