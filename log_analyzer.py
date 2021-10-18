@@ -1,14 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# DONE add README.md
-# DONE add logs
-# DONE make generator function for parsing
-# DONE add workaround about empty log directory
-# DONE add custom configs
-# DONE add unittests
-# DONE add warning about a lot of parsing errors
-
 # log_format ui_short
 # '$remote_addr  $remote_user $http_x_real_ip [$time_local] "$request" '
 # '$status $body_bytes_sent "$http_referer" '
@@ -135,15 +127,16 @@ class LogParser:
             send_message(f'No files in {self.log_dir} directory', level='w')
             return False
         self.report_dir = self.get_report_dir(self.config)
-        self.report_file_path = self.get_report_file_path(self.report_dir)
+        # self.report_file_path = self.get_report_file_path(self.report_dir)
+        self.report_file_path = self.get_report_file_path(self.config)
         if self.is_report_exists(self.report_file_path):
             send_message('Report already exists')
             return False  # all work already done - nothing to do
         return True  # ready to start parsing log file
 
-    def get_log_dir(self, config):
-        self.log_dir = Path(config['LOG_DIR'])
-        return self.log_dir
+    def get_log_dir(self, config: Dict):
+        log_dir = Path(config['LOG_DIR'])
+        return log_dir
 
     def get_report_dir(self, config):
         if not self.report_dir:
@@ -164,7 +157,7 @@ class LogParser:
         # if not os.path.exists(report_dir):
         #     os.mkdir(report_dir)
         self.create_report(
-            self.get_report_file_path(report_dir),
+            self.get_report_file_path(self.config),
             parsed_log
         )
 
@@ -211,141 +204,177 @@ class LogParser:
                 return False
         return True
 
-    def get_log_file(self, config):
-        self.log_file_path = self.get_log_file_path(config)
-        if not self.log_file_path:
-            return None
-        if self.log_file_path.endswith('.gz'):
-            _file = gzip.open(self.log_file_path, 'rt')
-        else:
-            _file = open(self.log_file_path, 'r', encoding='utf-8')
-        return (row for row in _file)
+    # # используется 0 раз
+    # def get_log_file(self, config):
+    #     self.log_file_path = self.get_log_file_path(config)
+    #     if not self.log_file_path:
+    #         return None
+    #     if self.log_file_path.endswith('.gz'):
+    #         _file = gzip.open(self.log_file_path, 'rt')
+    #     else:
+    #         _file = open(self.log_file_path, 'r', encoding='utf-8')
+    #     return (row for row in _file)
 
+    # используется 4 раза
     def get_log_file_path(self, config):
+        self.log_dir = self.get_log_dir(config)
         log_file_path = self.get_latest_log_file_path(
-            self.get_log_dir(self.config)
+            self.get_files_list(self.log_dir),
+            self.log_file_name_pattern,
+            self.config
         )
         if not log_file_path:
             return None
         self.log_file_path = log_file_path
         return self.log_file_path
 
-    def get_log_file_date(self, config):
-        self.log_file_date = self.get_latest_log_file_date()
-        return self.log_file_date
+    # def get_log_file_date(self, config):
+    #     self.log_file_date = self.get_latest_log_file_date()
+    #     return self.log_file_date
 
-    def get_log_files_list(self, log_dir):
-        files_list = os.listdir(log_dir)
+    # # используется 1 раза
+    def get_files_list(self, dirrectory):
+        files_list = os.listdir(dirrectory)
         if not files_list:
             send_message('No files in log directory')
             return None
         for file_name in files_list:
-            if os.path.isfile(os.path.join(log_dir, file_name)):
+            if os.path.isfile(os.path.join(dirrectory, file_name)):
                 yield file_name
 
-    def get_log_files_list_by_pattern(self, files_list=None, pattern=None):
-        if not pattern:
-            pattern = self.log_file_name_pattern
-        if files_list is None:
-            files_list = self.get_log_files_list(
-                self.get_log_dir(self.config)
-            )
-        if not files_list:
-            return None
-        for file_name in files_list:
-            if re.fullmatch(pattern, file_name):
-                yield file_name
+    # # используется 0 раз
+    # def get_log_files_list_by_pattern(self, pattern):
+    #     # files_list = self.get_log_files_list(
+    #     #         self.get_log_dir(self.config)
+    #     #     )
+    #     files_list = os.listdir(self.get_log_dir(self.config))
+    #     if not files_list:
+    #         send_message('No files in log directory')
+    #         return None
+    #     if pattern:
+    #         for file_name in files_list:
+    #             if re.fullmatch(pattern, file_name):
+    #                 yield file_name
+    #     else:
+    #         for file_name in files_list:
+    #             yield file_name
 
-    def get_latest_log_file_path(self, log_dir):
-        files_dict, max_date = {}, 0
-        files_list = self.get_log_files_list_by_pattern()
-        if not files_list:
+    # используется 1 раз
+    # def get_latest_log_file_path(self, log_dir):
+    def get_latest_log_file_path(self, log_files_list, pattern, config):
+        # files_dict, max_date = {}, 0
+        # files_list = self.get_log_files_list_by_pattern()
+        # if not files_list:
+        #     return None
+        # for file in files_list:
+        #     file_date = int(file[20:28])
+        #     max_date = file_date if file_date > max_date else max_date
+        #     files_dict[file_date] = file
+        # if not files_dict:
+        #     return None
+        # return os.path.join(log_dir, files_dict[max_date])
+        self.log_dir = self.get_log_dir(config)
+        latest_file, max_date = '', 0
+        # files_list = self.get_log_files_list_by_pattern(
+        #     self.log_file_name_pattern)
+        if not log_files_list:
             return None
-        for file in files_list:
+        for file in log_files_list:
+            if not re.fullmatch(pattern, file):
+                continue
             file_date = int(file[20:28])
-            max_date = file_date if file_date > max_date else max_date
-            files_dict[file_date] = file
-        if not files_dict:
+            if file_date > max_date:
+                latest_file, max_date = file, file_date
+        if not latest_file:
             return None
-        return os.path.join(log_dir, files_dict[max_date])
+        return os.path.join(self.log_dir, latest_file)
 
-    def get_latest_log_file_date(self, log_file_path=None, pattern=None):
-        if log_file_path is None:
-            log_file_path = self.get_log_file_path()
-        if not log_file_path:
-            return None
-        if pattern is None:
-            pattern = self.log_file_date_pattern  # get ['YYYYmmdd']
-        _date = re.findall(pattern, log_file_path)[0]
-        format_date = '%Y%m%d'
-        return datetime.strptime(_date, format_date)
+    # # используется 0 раз
+    # def get_latest_log_file_date(self, log_file_path=None, pattern=None):
+    #     if log_file_path is None:
+    #         log_file_path = self.get_log_file_path()
+    #     if not log_file_path:
+    #         return None
+    #     if pattern is None:
+    #         pattern = self.log_file_date_pattern  # get ['YYYYmmdd']
+    #     _date = re.findall(pattern, log_file_path)[0]
+    #     format_date = '%Y%m%d'
+    #     return datetime.strptime(_date, format_date)
 
-    def get_lines_count(self):
-        if not self.lines_count:
-            self.count_lines_and_total_request_time()
-        return self.lines_count
+    # def get_lines_count(self):
+    #     if not self.lines_count:
+    #         self.count_lines_and_total_request_time()
+    #     return self.lines_count
 
-    def get_total_request_time(self):
-        if not self.total_request_time:
-            self.count_lines_and_total_request_time()
-        return self.total_request_time
+    # def get_total_request_time(self):
+    #     if not self.total_request_time:
+    #         self.count_lines_and_total_request_time()
+    #     return self.total_request_time
 
-    def count_lines_and_total_request_time(self):
-        if not self.lines_count or not self.total_request_time:
-            log_file = self.get_log_file(self.config)
-            self.lines_count = 0
-            self.total_request_time = 0
-            for row in log_file:
-                self.lines_count += 1
-                parsed = self.parse_log_row(row)
-                if parsed:
-                    self.total_request_time += float(
-                        parsed['request_time']
-                    )
-        return True
+    # def count_lines_and_total_request_time(self):
+    #     if not self.lines_count or not self.total_request_time:
+    #         log_file = self.get_log_file(self.config)
+    #         self.lines_count = 0
+    #         self.total_request_time = 0
+    #         for row in log_file:
+    #             self.lines_count += 1
+    #             parsed = self.parse_log_row(row)
+    #             if parsed:
+    #                 self.total_request_time += float(
+    #                     parsed['request_time']
+    #                 )
+    #     return True
 
     def parse_log(self, log_file_path):
-        log_file = self.get_log_file(log_file_path)
+        # log_file = self.get_log_file(log_file_path)
         result_dict = {}
+        lines_count, total_request_time = 0, .0
+
+        # ==== log_file iterate ====
+        log_file = gzip.open(self.log_file_path, 'rt') if (
+            self.log_file_path.endswith('.gz')
+        ) else open(self.log_file_path, 'r', encoding='utf-8')
         if not log_file:
             return None
-        self.lines_count = self.get_lines_count()
-        self.total_request_time = self.get_total_request_time()
         for row in log_file:
+            lines_count += 1
             parsed = self.parse_log_row(row)
             if not parsed:
                 self.errors += 1
                 continue
+            total_request_time += float(parsed['request_time'])
             request, request_time = parsed['request'], parsed['request_time']
             if request not in result_dict:
-                tr_dict = {
+                temp_dict = {
                     'url': request,
                     'count': 1,
                     'durations': [request_time],
-                    'count_perc': 100 / self.lines_count,
                     'time_avg': request_time,
                     'time_max': request_time,
                     'time_sum': request_time,
-                    'time_perc': request_time * 100 / self.total_request_time
                 }
             else:
-                tr_dict = result_dict[request]
-                tr_dict['count'] += 1
-                tr_dict['durations'].append(request_time)
-                tr_dict['count_perc'] = (
-                    tr_dict['count'] * 100 / self.lines_count
+                temp_dict = result_dict[request]
+                temp_dict['count'] += 1
+                temp_dict['durations'].append(request_time)
+                temp_dict['time_sum'] += request_time
+                temp_dict['time_avg'] = (
+                    temp_dict['time_sum'] / temp_dict['count']
                 )
-                tr_dict['time_sum'] += request_time
-                tr_dict['time_perc'] = (
-                    tr_dict['time_sum'] * 100 / self.total_request_time
-                )
-                tr_dict['time_avg'] = tr_dict['time_sum'] / tr_dict['count']
-                tr_dict['time_max'] = request_time if (
-                                          request_time > tr_dict['time_max']
-                                      ) else tr_dict['time_max']
-            result_dict[request] = tr_dict
+                temp_dict['time_max'] = request_time if (
+                                          request_time > temp_dict['time_max']
+                                      ) else temp_dict['time_max']
+            result_dict[request] = temp_dict
+        log_file.close()
+        # ==== end log_file iterate ====
 
         for key in result_dict:
+            result_dict[key]['count_perc'] = (
+                result_dict[key]['count'] * 100 / lines_count
+            )
+            result_dict[key]['time_perc'] = (
+                result_dict[key]['time_sum'] * 100 / total_request_time
+            )
             durations = result_dict[key]['durations']
             result_dict[key]['time_med'] = durations[0] if (
                                                len(durations) == 1
