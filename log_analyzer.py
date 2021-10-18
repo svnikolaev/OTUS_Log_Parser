@@ -40,9 +40,7 @@ def send_message(_message: str, level: Optional[str] = 'i') -> None:
             level, 'error' - error level, 'exception' - exception level. \
             Defaults to 'i'.
     """
-
     print(_message)
-
     if level == 'i':
         logger.info(_message)
     if level == 'w':
@@ -78,11 +76,6 @@ class LogParser:
         self.log_file_name_pattern = self.default_log_file_name_pattern
         self.log_file_date_pattern = self.default_log_file_date_pattern
         self.row_pattern = self.default_row_pattern
-        self.report_dir = ''
-        self.log_dir = ''
-        self.log_file_path = ''
-        self.log_file_date = None
-        self.report_file_path = ''
         self.lines_count = 0
         self.errors = 0
         if not debug and not self.is_keys_in_config(config):
@@ -91,17 +84,16 @@ class LogParser:
             raise Exception(_message)
         else:
             self.config = config
-        self.log_dir = self.get_log_dir(self.config)
 
     def handle_log(self):
         if not self.is_ready_to_parse():
             return None
-        self.log_file_path = self.get_log_file_path(self.config)
-        parsed_log = self.parse_log(self.log_file_path)
+        log_file_path = self.get_log_file_path(self.config)
+        parsed_log = self.parse_log(log_file_path)
         if not parsed_log:
             send_message("Log was not parsed", level='w')
             return None
-        send_message(f'parsing {self.log_file_path}')
+        send_message(f'parsing {log_file_path}')
         self.export_report(self.get_report_dir(self.config), parsed_log)
         if self.errors:
             send_message(f'Parsing errors: {self.errors}', level='w')
@@ -113,65 +105,61 @@ class LogParser:
         Returns:
             bool: Is it possible to parse log or not
         """
-        self.log_dir = self.get_log_dir(self.config)
-        if not Path(self.log_dir).exists():
-            send_message(f'Directory {self.log_dir} not found', level='w')
+        log_dir = self.get_log_dir(self.config)
+        if not Path(log_dir).exists():
+            send_message(f'Directory {log_dir} not found', level='w')
             return False
-        if not Path(self.log_dir).iterdir():
-            send_message(f'No files in {self.log_dir} directory', level='w')
+        if not os.listdir(log_dir):
+            send_message(f'No files in {log_dir} directory', level='w')
             return False
-        self.report_dir = self.get_report_dir(self.config)
-        # self.report_file_path = self.get_report_file_path(self.report_dir)
-        self.report_file_path = self.get_report_file_path(self.config)
-        if Path(self.report_file_path).exists():
+        report_file_path = self.get_report_file_path(self.config)
+        if Path(report_file_path).exists():
             send_message('Report already exists')
             return False  # all work already done - nothing to do
         return True  # ready to start parsing log file
 
-    def get_log_dir(self, config: Dict):
+    def get_log_dir(self, config: Dict) -> Path:
         log_dir = Path(config['LOG_DIR'])
         return log_dir
 
-    def get_report_dir(self, config):
-        if not self.report_dir:
-            report_dir = Path(config['REPORT_DIR'])
-            print(f'report_dir: {report_dir}')
-            self.report_dir = report_dir
-        return self.report_dir
+    def get_report_dir(self, config: Dict) -> Path:
+        report_dir = Path(config['REPORT_DIR'])
+        return report_dir
 
     def export_report(self, report_dir, parsed_log):
         Path(report_dir).mkdir(exist_ok=True, parents=True)
         self.create_report(self.get_report_file_path(self.config),
                            parsed_log)
 
-    def get_report_file_path(self, config):
-        # self.log_file_date = self.get_log_file_date()
-        self.log_file_path = self.get_log_file_path(config)
-        self.log_file_date = datetime.strptime(
-            re.findall(self.log_file_date_pattern,
-                       self.log_file_path)[0],  # date
-            '%Y%m%d'  # date format
-        )
-        self.report_dir = self.get_report_dir(self.config)
-        if not self.log_file_date:
+    def get_report_file_path(self, config: Dict) -> str:
+        """combine and return report file path
+
+        Args:
+            config (Dict): general configuration dict
+
+        Returns:
+            str: report file path
+        """
+        log_file_path = self.get_log_file_path(config)
+        _dt = re.findall(self.log_file_date_pattern, log_file_path)[0]
+        log_file_date = datetime.strptime(_dt, '%Y%m%d')
+        if not log_file_date:
             return None
-        if not self.report_file_path:
-            formatted_date = self.log_file_date.strftime('%Y.%m.%d')
-            report_file_name = f"report-{formatted_date}.html"
-            self.report_file_path = os.path.join(
-                self.report_dir, report_file_name)
-        return self.report_file_path
+        report_dir = self.get_report_dir(self.config)
+        formatted_date = log_file_date.strftime('%Y.%m.%d')
+        report_file_name = f"report-{formatted_date}.html"
+        return os.path.join(report_dir, report_file_name)
 
     def create_report(self, report_file_path, parsed_log):
-        if not os.path.exists(self.report_file_path):
-            with open('report_template.html', 'r', encoding='utf-8') as file:
-                report_text = ''.join(file.readlines())
-            with open(report_file_path, 'w', encoding='utf-8') as file:
-                _template = Template(report_text)
-                report_text = _template.safe_substitute(
-                    table_json=[*parsed_log.values()]
-                )
-                file.writelines(report_text)
+        if Path(report_file_path).exists():
+            return None
+        with open('report_template.html', 'r', encoding='utf-8') as file:
+            report_text = ''.join(file.readlines())
+        with open(report_file_path, 'w', encoding='utf-8') as file:
+            _template = Template(report_text)
+            report_text = _template.safe_substitute(
+                table_json=[*parsed_log.values()])
+            file.writelines(report_text)
         send_message(f'{report_file_path} created')
         return True
 
@@ -187,20 +175,22 @@ class LogParser:
                 return False
         return True
 
-    # используется _ раз
-    def get_log_file_path(self, config):
-        self.log_dir = self.get_log_dir(config)
-        log_file_path = self.get_latest_log_file_path(
-            self.get_files_list(self.log_dir),
-            self.log_file_name_pattern,
-            self.config
-        )
-        if not log_file_path:
+    def get_log_file_path(self, config: Dict) -> str:
+        log_dir = self.get_log_dir(config)
+        latest_file, max_date = '', 0
+        log_files_list = self.get_files_list(log_dir)
+        if not log_files_list:
             return None
-        self.log_file_path = log_file_path
-        return self.log_file_path
+        for file in log_files_list:
+            if not re.fullmatch(self.log_file_name_pattern, file):
+                continue
+            file_date = int(file[20:28])
+            if file_date > max_date:
+                latest_file, max_date = file, file_date
+        if not latest_file:
+            return None
+        return os.path.join(log_dir, latest_file)
 
-    # # используется 1 раз
     def get_files_list(self, dirrectory):
         files_list = os.listdir(dirrectory)
         if not files_list:
@@ -210,33 +200,17 @@ class LogParser:
             if os.path.isfile(os.path.join(dirrectory, file_name)):
                 yield file_name
 
-    # используется _ раз
-    def get_latest_log_file_path(self, log_files_list, pattern, config):
-        self.log_dir = self.get_log_dir(config)
-        latest_file, max_date = '', 0
-        if not log_files_list:
-            return None
-        for file in log_files_list:
-            if not re.fullmatch(pattern, file):
-                continue
-            file_date = int(file[20:28])
-            if file_date > max_date:
-                latest_file, max_date = file, file_date
-        if not latest_file:
-            return None
-        return os.path.join(self.log_dir, latest_file)
-
     def parse_log(self, log_file_path):
         result_dict = {}
         lines_count, total_request_time = 0, .0
-        log_file = gzip.open(self.log_file_path, 'rt') if (
-            self.log_file_path.endswith('.gz')
-        ) else open(self.log_file_path, 'r', encoding='utf-8')
+        log_file = gzip.open(log_file_path, 'rt') if (
+            log_file_path.endswith('.gz')
+        ) else open(log_file_path, 'r', encoding='utf-8')
         if not log_file:
             return None
         for row in log_file:
             lines_count += 1
-            parsed = self.parse_log_row(row)
+            parsed = self.parse_log_row(row, self.row_pattern)
             if not parsed:
                 self.errors += 1
                 continue
@@ -257,31 +231,25 @@ class LogParser:
                 temp_dict['durations'].append(request_time)
                 temp_dict['time_sum'] += request_time
                 temp_dict['time_avg'] = (
-                    temp_dict['time_sum'] / temp_dict['count']
-                )
+                    temp_dict['time_sum'] / temp_dict['count'])
                 temp_dict['time_max'] = request_time if (
-                                          request_time > temp_dict['time_max']
-                                      ) else temp_dict['time_max']
+                    request_time > temp_dict['time_max']
+                                 ) else temp_dict['time_max']
             result_dict[request] = temp_dict
         log_file.close()
 
         for key in result_dict:
             result_dict[key]['count_perc'] = (
-                result_dict[key]['count'] * 100 / lines_count
-            )
+                result_dict[key]['count'] * 100 / lines_count)
             result_dict[key]['time_perc'] = (
-                result_dict[key]['time_sum'] * 100 / total_request_time
-            )
+                result_dict[key]['time_sum'] * 100 / total_request_time)
             durations = result_dict[key]['durations']
-            result_dict[key]['time_med'] = durations[0] if (
-                                               len(durations) == 1
-                                           ) else median(durations)
+            result_dict[key]['time_med'] = (
+                durations[0] if len(durations) == 1 else median(durations))
             del result_dict[key]['durations']
         return result_dict
 
-    def parse_log_row(self, parsing_string, row_pattern=None):
-        if row_pattern is None:
-            row_pattern = self.row_pattern
+    def parse_log_row(self, parsing_string: str, row_pattern: str) -> Dict:
         try:
             transition_list = re.findall(row_pattern, parsing_string)[0]
         except:  # noqa: E722
