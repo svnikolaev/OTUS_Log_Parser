@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from statistics import median
 from string import Template
-from typing import Dict, Optional
+from typing import Dict, Generator, List, Optional
 
 # setup logger
 logging.basicConfig(
@@ -76,28 +76,25 @@ class LogParser:
         self.log_file_name_pattern = self.default_log_file_name_pattern
         self.log_file_date_pattern = self.default_log_file_date_pattern
         self.row_pattern = self.default_row_pattern
-        self.lines_count = 0
-        self.errors = 0
-        if not debug and not self.is_keys_in_config(config):
-            _message = 'NOT PROPPER CONFIG'
+        if not debug and not self.check_config_params(config):
+            _message = 'NOT PROPER CONFIG'
             logger.exception(_message)
             raise Exception(_message)
         else:
             self.config = config
 
-    def handle_log(self):
+    def handle_log(self) -> None:
         if not self.is_ready_to_parse():
-            return None
+            return  # None
         log_file_path = self.get_log_file_path(self.config)
-        parsed_log = self.parse_log(log_file_path)
+        parsed_log, errors = self.parse_log(log_file_path)
         if not parsed_log:
-            send_message("Log was not parsed", level='w')
-            return None
+            send_message('Log was not parsed', level='w')
+            return  # None
         send_message(f'parsing {log_file_path}')
         self.export_report(self.get_report_dir(self.config), parsed_log)
-        if self.errors:
-            send_message(f'Parsing errors: {self.errors}', level='w')
-        return True
+        if errors:
+            send_message(f'Parsing errors: {errors}', level='w')
 
     def is_ready_to_parse(self) -> bool:
         """Check if conditions meet requirements to start parsing log file
@@ -126,7 +123,7 @@ class LogParser:
         report_dir = Path(config['REPORT_DIR'])
         return report_dir
 
-    def export_report(self, report_dir, parsed_log):
+    def export_report(self, report_dir: Path, parsed_log: Dict) -> None:
         Path(report_dir).mkdir(exist_ok=True, parents=True)
         self.create_report(self.get_report_file_path(self.config),
                            parsed_log)
@@ -144,15 +141,16 @@ class LogParser:
         _dt = re.findall(self.log_file_date_pattern, log_file_path)[0]
         log_file_date = datetime.strptime(_dt, '%Y%m%d')
         if not log_file_date:
-            return None
+            return ''  # False
         report_dir = self.get_report_dir(self.config)
         formatted_date = log_file_date.strftime('%Y.%m.%d')
         report_file_name = f"report-{formatted_date}.html"
         return os.path.join(report_dir, report_file_name)
 
-    def create_report(self, report_file_path, parsed_log):
+    @staticmethod
+    def create_report(report_file_path, parsed_log):
         if Path(report_file_path).exists():
-            return None
+            return  # None
         with open('report_template.html', 'r', encoding='utf-8') as file:
             report_text = ''.join(file.readlines())
         with open(report_file_path, 'w', encoding='utf-8') as file:
@@ -161,14 +159,14 @@ class LogParser:
                 table_json=[*parsed_log.values()])
             file.writelines(report_text)
         send_message(f'{report_file_path} created')
-        return True
 
-    def is_keys_in_config(self, config, keys=None, debug=False):
-        if keys is None:
-            keys = self.config_keys
+    def check_config_params(self, config, params: Optional[List[str]] = None,
+                            debug: Optional[bool] = False) -> bool:
+        if params is None:
+            params = self.config_keys
         if not debug:
             send_message(f'CONFIG: {config}')
-        for key in keys:
+        for key in params:
             if key not in config:
                 if not debug:
                     send_message(f'Config key: {key} not in config', level='w')
@@ -180,7 +178,7 @@ class LogParser:
         latest_file, max_date = '', 0
         log_files_list = self.get_files_list(log_dir)
         if not log_files_list:
-            return None
+            return ''  # False
         for file in log_files_list:
             if not re.fullmatch(self.log_file_name_pattern, file):
                 continue
@@ -188,31 +186,31 @@ class LogParser:
             if file_date > max_date:
                 latest_file, max_date = file, file_date
         if not latest_file:
-            return None
+            return ''  # False
         return os.path.join(log_dir, latest_file)
 
-    def get_files_list(self, dirrectory):
-        files_list = os.listdir(dirrectory)
+    @staticmethod
+    def get_files_list(directory: str) -> Generator[str, None, None]:
+        files_list = os.listdir(directory)
         if not files_list:
             send_message('No files in log directory')
-            return None
+            return  # None
         for file_name in files_list:
-            if os.path.isfile(os.path.join(dirrectory, file_name)):
+            if Path(directory).joinpath(file_name).is_file():
                 yield file_name
 
-    def parse_log(self, log_file_path):
-        result_dict = {}
-        lines_count, total_request_time = 0, .0
+    def parse_log(self, log_file_path: str) -> tuple[Dict, int]:
+        result_dict, errors = {}, 0
+        total_request_time = .0
         log_file = gzip.open(log_file_path, 'rt') if (
             log_file_path.endswith('.gz')
         ) else open(log_file_path, 'r', encoding='utf-8')
         if not log_file:
-            return None
-        for row in log_file:
-            lines_count += 1
+            return {}  # False
+        for lines_count, row in enumerate(log_file):
             parsed = self.parse_log_row(row, self.row_pattern)
             if not parsed:
-                self.errors += 1
+                errors += 1
                 continue
             total_request_time += float(parsed['request_time'])
             request, request_time = parsed['request'], parsed['request_time']
@@ -247,13 +245,14 @@ class LogParser:
             result_dict[key]['time_med'] = (
                 durations[0] if len(durations) == 1 else median(durations))
             del result_dict[key]['durations']
-        return result_dict
+        return result_dict, errors
 
-    def parse_log_row(self, parsing_string: str, row_pattern: str) -> Dict:
+    @staticmethod
+    def parse_log_row(parsing_string: str, row_pattern: str) -> Dict:
         try:
             transition_list = re.findall(row_pattern, parsing_string)[0]
         except:  # noqa: E722
-            return False
+            return {}  # False
         result_dict = {
             'remote_addr': transition_list[0],
             'remote_user': transition_list[1],
@@ -274,9 +273,9 @@ class LogParser:
 
 def get_config() -> Dict:
     config = {
-        "REPORT_SIZE": 1000,
-        "REPORT_DIR": "./reports",
-        "LOG_DIR": "./log"
+        'REPORT_SIZE': 1000,
+        'REPORT_DIR': './reports',
+        'LOG_DIR': './log'
     }
     parser = argparse.ArgumentParser(description='Configuration file')
     parser.add_argument(
@@ -289,7 +288,7 @@ def get_config() -> Dict:
     if not os.path.exists(config_path):
         send_message(f'Configuration file: {config_path} - is not exists',
                      level='w')
-        return None
+        return {}
     config_parser = configparser.ConfigParser()  # create parser object
     config_parser.read(config_path)
     configuration = config_parser['LOG_PARSER']
@@ -314,5 +313,5 @@ def main():
     send_message('End process\n')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
