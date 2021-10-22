@@ -13,7 +13,7 @@ class TestLogParser(unittest.TestCase):
         }
         self.log_parser = LogParser(config, debug=True)
 
-    def test_is_keys_in_config(self):
+    def test_check_config_params(self):
         for value, result in [
             ({
                 "REPORT_SIZE": 1000,
@@ -41,9 +41,9 @@ class TestLogParser(unittest.TestCase):
         ]:
             with self.subTest(value):
                 self.assertEqual(
-                    self.log_parser.is_keys_in_config(
+                    self.log_parser.check_config_params(
                         value,
-                        keys=['REPORT_DIR', 'LOG_DIR', 'REPORT_SIZE'],
+                        params=['REPORT_DIR', 'LOG_DIR', 'REPORT_SIZE'],
                         debug=True
                     ),
                     result
