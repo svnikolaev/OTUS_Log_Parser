@@ -13,6 +13,7 @@ import gzip
 import logging
 import os
 import re
+import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -21,34 +22,19 @@ from string import Template
 from typing import Dict, Generator, List, Optional
 
 # setup logger
+file_handler = logging.FileHandler(
+    filename=f'{datetime.today().strftime("%Y%m%d")}.log'
+)
+stdout_handler = logging.StreamHandler(sys.stdout)
+handlers = [file_handler, stdout_handler]
 logging.basicConfig(
-    filename=datetime.today().strftime('%Y%m%d') + '.log',
     format='[%(asctime)s] %(levelname).1s %(message)s',
     datefmt='%Y.%m.%d %H:%M:%S',
     encoding='utf-8',
-    level=logging.INFO
+    level=logging.INFO,
+    handlers=handlers
 )
 logger = logging.getLogger(__name__)
-
-
-def send_message(_message: str, level: Optional[str] = 'i') -> None:
-    """Send message to stdout and to log file at the same time
-
-    Args:
-        _message (str): message that need to send
-        level (Optional[str], optional): 'i' - info level, 'w' - warning \
-            level, 'error' - error level, 'exception' - exception level. \
-            Defaults to 'i'.
-    """
-    print(_message)
-    if level == 'i':
-        logger.info(_message)
-    if level == 'w':
-        logger.warning(_message)
-    if level == 'error':
-        logger.error(_message)
-    if level == 'exception':
-        logger.exception(_message)
 
 
 class LogParser:
@@ -89,12 +75,12 @@ class LogParser:
         log_file_path = self.get_log_file_path(self.config)
         parsed_log, errors = self.parse_log(log_file_path)
         if not parsed_log:
-            send_message('Log was not parsed', level='w')
+            logger.warning('Log was not parsed')
             return  # None
-        send_message(f'parsing {log_file_path}')
+        logger.info(f'parsing {log_file_path}')
         self.export_report(self.get_report_dir(self.config), parsed_log)
         if errors:
-            send_message(f'Parsing errors: {errors}', level='w')
+            logger.warning(f'Parsing errors: {errors}')
 
     def is_ready_to_parse(self) -> bool:
         """Check if conditions meet requirements to start parsing log file
@@ -104,14 +90,14 @@ class LogParser:
         """
         log_dir = self.get_log_dir(self.config)
         if not Path(log_dir).exists():
-            send_message(f'Directory {log_dir} not found', level='w')
+            logger.warning(f'Directory {log_dir} not found')
             return False
         if not os.listdir(log_dir):
-            send_message(f'No files in {log_dir} directory', level='w')
+            logger.warning(f'No files in {log_dir} directory')
             return False
         report_file_path = self.get_report_file_path(self.config)
         if Path(report_file_path).exists():
-            send_message('Report already exists')
+            logger.info('Report already exists')
             return False  # all work already done - nothing to do
         return True  # ready to start parsing log file
 
@@ -158,18 +144,18 @@ class LogParser:
             report_text = _template.safe_substitute(
                 table_json=[*parsed_log.values()])
             file.writelines(report_text)
-        send_message(f'{report_file_path} created')
+        logger.info(f'{report_file_path} created')
 
     def check_config_params(self, config, params: Optional[List[str]] = None,
                             debug: Optional[bool] = False) -> bool:
         if params is None:
             params = self.config_keys
         if not debug:
-            send_message(f'CONFIG: {config}')
+            logger.info(f'CONFIG: {config}')
         for key in params:
             if key not in config:
                 if not debug:
-                    send_message(f'Config key: {key} not in config', level='w')
+                    logger.warning(f'Config key: {key} not in config')
                 return False
         return True
 
@@ -193,7 +179,7 @@ class LogParser:
     def get_files_list(directory: str) -> Generator[str, None, None]:
         files_list = os.listdir(directory)
         if not files_list:
-            send_message('No files in log directory')
+            logger.info('No files in log directory')
             return  # None
         for file_name in files_list:
             if Path(directory).joinpath(file_name).is_file():
@@ -286,8 +272,7 @@ def get_config() -> Dict:
     )
     config_path = parser.parse_args().config
     if not os.path.exists(config_path):
-        send_message(f'Configuration file: {config_path} - is not exists',
-                     level='w')
+        logger.warning(f'Configuration file: {config_path} - is not exists')
         return {}
     config_parser = configparser.ConfigParser()  # create parser object
     config_parser.read(config_path)
@@ -302,7 +287,7 @@ def get_config() -> Dict:
 
 
 def main():
-    send_message('Start process')
+    logger.info('Start process')
     config = get_config()
     if config:
         try:
@@ -310,7 +295,7 @@ def main():
             log_parser.handle_log()
         except:  # noqa: E722
             logger.exception(f'uncaught exception: {traceback.format_exc()}')
-    send_message('End process\n')
+    logger.info('End process\n')
 
 
 if __name__ == '__main__':
