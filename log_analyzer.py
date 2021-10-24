@@ -192,7 +192,7 @@ class LogParser:
             log_file_path.endswith('.gz')
         ) else open(log_file_path, 'r', encoding='utf-8')
         if not log_file:
-            return {}  # False
+            return ({}, 0)  # False
         for lines_count, row in enumerate(log_file):
             parsed = self.parse_log_row(row, self.row_pattern)
             if not parsed:
